@@ -1,0 +1,406 @@
+basePath: /
+definitions:
+  handlers.CreateTemplateRequest:
+    properties:
+      channel:
+        $ref: '#/definitions/models.Channel'
+      content:
+        type: string
+      name:
+        type: string
+    type: object
+  models.Batch:
+    properties:
+      created_at:
+        type: string
+      delivered:
+        type: integer
+      failed:
+        type: integer
+      id:
+        type: string
+      pending:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.Channel:
+    enum:
+    - sms
+    - email
+    - push
+    type: string
+    x-enum-varnames:
+    - ChannelSMS
+    - ChannelEmail
+    - ChannelPush
+  models.CreateBatchRequest:
+    properties:
+      notifications:
+        items:
+          $ref: '#/definitions/models.CreateNotificationRequest'
+        maxItems: 1000
+        minItems: 1
+        type: array
+    required:
+    - notifications
+    type: object
+  models.CreateNotificationRequest:
+    properties:
+      channel:
+        allOf:
+        - $ref: '#/definitions/models.Channel'
+        enum:
+        - sms
+        - email
+        - push
+      content:
+        type: string
+      idempotency_key:
+        type: string
+      priority:
+        allOf:
+        - $ref: '#/definitions/models.Priority'
+        enum:
+        - high
+        - normal
+        - low
+      recipient:
+        type: string
+      scheduled_at:
+        type: string
+      template_id:
+        type: string
+      template_vars:
+        additionalProperties:
+          type: string
+        type: object
+    required:
+    - channel
+    - content
+    - recipient
+    type: object
+  models.Notification:
+    properties:
+      batch_id:
+        type: string
+      channel:
+        $ref: '#/definitions/models.Channel'
+      content:
+        type: string
+      created_at:
+        type: string
+      error_message:
+        type: string
+      id:
+        type: string
+      idempotency_key:
+        type: string
+      max_retries:
+        type: integer
+      priority:
+        $ref: '#/definitions/models.Priority'
+      provider_message_id:
+        type: string
+      recipient:
+        type: string
+      retry_count:
+        type: integer
+      scheduled_at:
+        type: string
+      sent_at:
+        type: string
+      status:
+        $ref: '#/definitions/models.Status'
+      template_id:
+        type: string
+      template_vars:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.PaginatedResponse:
+    properties:
+      data: {}
+      page:
+        type: integer
+      page_size:
+        type: integer
+      pages:
+        type: integer
+      total:
+        type: integer
+    type: object
+  models.Priority:
+    enum:
+    - high
+    - normal
+    - low
+    type: string
+    x-enum-varnames:
+    - PriorityHigh
+    - PriorityNormal
+    - PriorityLow
+  models.Status:
+    enum:
+    - pending
+    - queued
+    - processing
+    - delivered
+    - failed
+    - cancelled
+    - scheduled
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusQueued
+    - StatusProcessing
+    - StatusDelivered
+    - StatusFailed
+    - StatusCancelled
+    - StatusScheduled
+  models.Template:
+    properties:
+      channel:
+        $ref: '#/definitions/models.Channel'
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Event-driven multi-channel notification system
+  title: Notification System API
+  version: "1.0"
+paths:
+  /api/v1/metrics:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get real-time system metrics
+      tags:
+      - system
+  /api/v1/notifications:
+    get:
+      parameters:
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by channel
+        in: query
+        name: channel
+        type: string
+      - description: Filter by batch ID
+        in: query
+        name: batch_id
+        type: string
+      - description: Created after (RFC3339)
+        in: query
+        name: date_from
+        type: string
+      - description: Created before (RFC3339)
+        in: query
+        name: date_to
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (max 100)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PaginatedResponse'
+      summary: List notifications with filtering and pagination
+      tags:
+      - notifications
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Notification
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Notification'
+      summary: Create a notification
+      tags:
+      - notifications
+  /api/v1/notifications/{id}:
+    get:
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Notification'
+      summary: Get notification by ID
+      tags:
+      - notifications
+  /api/v1/notifications/{id}/cancel:
+    patch:
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Cancel a pending/queued notification
+      tags:
+      - notifications
+  /api/v1/notifications/batch:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Batch
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateBatchRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Batch'
+      summary: Create batch notifications (up to 1000)
+      tags:
+      - notifications
+  /api/v1/notifications/batch/{id}:
+    get:
+      parameters:
+      - description: Batch ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Batch'
+      summary: Get batch status by ID
+      tags:
+      - notifications
+  /api/v1/templates:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Template'
+            type: array
+      summary: List all templates
+      tags:
+      - templates
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Template
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Template'
+      summary: Create a message template
+      tags:
+      - templates
+  /api/v1/templates/{id}:
+    get:
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Template'
+      summary: Get template by ID
+      tags:
+      - templates
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health check endpoint
+      tags:
+      - system
+  /ws/notifications:
+    get:
+      responses: {}
+      summary: WebSocket endpoint for real-time notification status
+      tags:
+      - system
+swagger: "2.0"

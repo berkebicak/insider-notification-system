@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS notifications (
+	id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	batch_id         UUID REFERENCES batches(id) ON DELETE SET NULL,
+	recipient        TEXT NOT NULL,
+	channel          TEXT NOT NULL CHECK (channel IN ('sms', 'email', 'push')),
+	content          TEXT NOT NULL,
+	priority         TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('high', 'normal', 'low')),
+	status           TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'queued', 'processing', 'delivered', 'failed', 'cancelled', 'scheduled')),
+	idempotency_key  TEXT UNIQUE,
+	provider_msg_id  TEXT,
+	retry_count      INT NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+	max_retries      INT NOT NULL DEFAULT 3 CHECK (max_retries >= 0),
+	scheduled_at     TIMESTAMPTZ,
+	template_id      UUID REFERENCES templates(id) ON DELETE SET NULL,
+	template_vars    JSONB,
+	error_message    TEXT,
+	created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	sent_at          TIMESTAMPTZ
+);

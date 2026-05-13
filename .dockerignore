@@ -1,0 +1,6 @@
+.git
+.github
+.env
+coverage.out
+tmp
+*.exe
